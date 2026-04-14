@@ -1,0 +1,38 @@
+{% extends "rooms/base.html" %}
+{% block content %}
+
+<style>
+.room-card {
+    max-width: 480px;
+    margin: auto;
+    padding: 35px;
+    border-radius: 20px;
+    background: var(--card-bg);
+    border: 1px solid var(--border-color);
+    box-shadow: 0 0 20px #00000020;
+}
+
+.room-card h2 {
+    text-align: center;
+    font-weight: 700;
+    margin-bottom: 25px;
+}
+</style>
+
+<div class="room-card mt-5">
+    <h2>Join a Room</h2>
+
+    <form method="POST">
+        {% csrf_token %}
+
+        <div class="mb-3">
+            <label class="form-label">Room Code</label>
+            <input type="text" name="code" class="form-control"
+                   placeholder="Enter room code (e.g. A1B2C3)" required>
+        </div>
+
+        <button type="submit" class="btn btn-success w-100 mt-3">Join Room</button>
+    </form>
+</div>
+
+{% endblock %}

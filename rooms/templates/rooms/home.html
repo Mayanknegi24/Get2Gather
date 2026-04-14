@@ -1,0 +1,94 @@
+{% extends "rooms/base.html" %}
+{% block content %}
+
+<style>
+.home-hero {
+    text-align: center;
+    padding: 80px 20px;
+    border-radius: 12px;
+    background: var(--card-bg);
+    border: 1px solid var(--border-color);
+    box-shadow: 0 0 20px rgba(0,0,0,0.1);
+}
+
+.home-title {
+    font-size: 3rem;
+    font-weight: 700;
+    margin-bottom: 15px;
+    color: var(--text-color);
+}
+
+.home-subtitle {
+    font-size: 1.2rem;
+    color: var(--text-color);
+    opacity: 0.7;
+}
+
+.home-buttons {
+    margin-top: 25px;
+}
+
+.home-buttons a {
+    padding: 12px 28px;
+    font-size: 1.1rem;
+    border-radius: 10px;
+}
+
+.feature-box {
+    padding: 25px;
+    border-radius: 12px;
+    background: var(--card-bg);
+    border: 1px solid var(--border-color);
+    height: 100%;
+}
+
+.feature-icon {
+    font-size: 2.3rem;
+    margin-bottom: 10px;
+}
+
+</style>
+
+<!-- HERO SECTION -->
+<div class="home-hero mb-5">
+    <h1 class="home-title">Watch YT videos together with friends.</h1>
+    <p class="home-subtitle">
+        Create rooms, share the code, and enjoy synced YouTube videos with friends in real-time.
+    </p>
+
+    <div class="home-buttons">
+        <a href="{% url 'create_room' %}" class="btn btn-primary me-2">Create Room</a>
+        <a href="{% url 'join_room' %}" class="btn btn-outline-primary">Join Room</a>
+    </div>
+</div>
+
+<!-- FEATURES SECTION -->
+<div class="row text-center g-4">
+
+    <div class="col-md-4">
+        <div class="feature-box">
+            <div class="feature-icon">🎬</div>
+            <h4>Watch in Sync</h4>
+            <p>Play, pause, and seek — everyone stays perfectly synchronized.</p>
+        </div>
+    </div>
+
+    <div class="col-md-4">
+        <div class="feature-box">
+            <div class="feature-icon">💬</div>
+            <h4>Live Chat</h4>
+            <p>Chat while you watch. Discuss reactions in real time.</p>
+        </div>
+    </div>
+
+    <div class="col-md-4">
+        <div class="feature-box">
+            <div class="feature-icon">🔗</div>
+            <h4>Instant Room Sharing</h4>
+            <p>Share your room code instantly with your friends.</p>
+        </div>
+    </div>
+
+</div>
+
+{% endblock %}

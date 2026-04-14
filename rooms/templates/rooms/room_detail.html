@@ -1,0 +1,334 @@
+{% extends 'rooms/base.html' %}
+{% block content %}
+
+<style>
+/* ---------- GLOBAL LAYOUT ---------- */
+.room-wrapper {
+    display: flex;
+    gap: 25px;
+    width: 100%;
+    margin-top: 25px;
+    align-items: flex-start;
+}
+
+/* VIDEO AREA */
+.video-area {
+    flex: 1;
+    background: var(--card-bg);
+    padding: 20px;
+    border-radius: 14px;
+    box-shadow: 0 0 25px rgba(0,0,0,0.5);
+}
+
+#player {
+    width: 100%;
+    height: 650px !important;
+    border-radius: 12px;
+    overflow: hidden;
+}
+
+/* CHAT PANEL (FIXED WIDTH) */
+.chat-panel {
+    width: 350px;
+    min-width: 350px;
+    background: var(--card-bg);
+    padding: 20px;
+    border-radius: 14px;
+    box-shadow: 0 0 25px rgba(0,0,0,0.5);
+}
+
+.chat-title {
+    font-size: 1.3rem;
+    margin-bottom: 10px;
+    font-weight: 600;
+}
+
+#chat-log {
+    background: var(--bg-color);
+    color: var(--text-color);
+    height: 420px;
+    border-radius: 10px;
+    padding: 10px;
+    overflow-y: auto;
+    border: 1px solid var(--border-color);
+}
+
+.chat-msg {
+    background: var(--chat-bg);
+    padding: 8px 12px;
+    margin-bottom: 8px;
+    border-radius: 8px;
+}
+
+/* INPUT ROW */
+#chat-form .input-group input {
+    height: 45px;
+}
+
+#chat-form .btn-send {
+    width: 90px;
+}
+/* Chat Card */
+.chat-card {
+    height: 100%;
+    display: flex;
+    flex-direction: column;
+}
+
+/* Chat Box */
+.chat-box {
+    background: var(--card-bg);
+    border: 1px solid var(--border-color);
+    border-radius: 10px;
+    padding: 12px;
+    height: 450px;
+    overflow-y: auto;
+    scroll-behavior: smooth;
+}
+
+/* Chat bubble container */
+.chat-message {
+    margin-bottom: 12px;
+    animation: fadeIn 0.2s ease-in-out;
+}
+
+/* Username */
+.chat-user {
+    font-weight: bold;
+    font-size: 0.9rem;
+    opacity: 0.8;
+}
+
+/* Chat bubble */
+.chat-bubble {
+    background: var(--chat-bg);
+    color: var(--chat-text);
+    padding: 8px 14px;
+    border-radius: 10px;
+    display: inline-block;
+    max-width: 90%;
+    font-size: 0.95rem;
+}
+
+
+/* Fade animation */
+@keyframes fadeIn {
+    from { opacity: 0; transform: translateY(5px); }
+    to { opacity: 1; transform: translateY(0); }
+}
+
+/* Chat input fix for dark mode */
+.chat-input {
+    background: var(--card-bg) !important;
+    color: var(--text-color) !important;
+    border: 1px solid var(--border-color) !important;
+}
+.chat-input::placeholder {
+    color: var(--text-color);
+    opacity: 0.5;
+}
+/* Make system messages properly visible in dark mode */
+body.dark-mode #chat-log .text-muted,
+body.dark-mode #chat-log em {
+    color: var(--text-color) !important;
+    opacity: 0.8 !important;  /* matches muted style but visible */
+}
+
+
+/* ---------- RESPONSIVE ---------- */
+@media (max-width: 992px) {
+    .room-wrapper {
+        flex-direction: column;
+    }
+    .chat-panel {
+        width: 100%;
+        min-width: unset;
+    }
+    #player {
+        height: 450px !important;
+    }
+}
+</style>
+
+
+<h2 class="mb-1">🎬 Room: {{ room.name }}</h2>
+
+<div class="d-flex justify-content-between align-items-center mb-3">
+    <p class="mb-0">
+        <strong>Room Code:</strong>
+        <span style="color: var(--text-color); font-family: monospace;">{{ room.code }}</span>
+    </p>
+
+    <!-- 🟥 Leave Room button -->
+    <a href="/" class="btn btn-outline-danger btn-sm">
+        ← Leave Room
+    </a>
+</div>
+
+<!-- YT INPUT -->
+<div class="input-group mb-4">
+    <input id="yt-url" class="form-control" placeholder="Paste a YouTube Video link">
+    <button id="load-btn" class="btn btn-primary">Load Video</button>
+</div>
+
+<!-- MAIN LAYOUT -->
+<div class="room-wrapper">
+
+    <!-- VIDEO BLOCK -->
+    <div class="video-area">
+        <div id="player"></div>
+    </div>
+
+   <!-- CHAT SECTION -->
+<div class="chat-card card p-3">
+    <h4 class="mb-3">Chat Section</h4>
+
+    <!-- Chat messages -->
+    <div id="chat-log" class="chat-box"></div>
+
+    <!-- Send message -->
+    <form id="chat-form" class="mt-3">
+        {% csrf_token %}
+        <div class="input-group">
+            <input 
+                type="text" 
+                id="chat-message-input" 
+                class="form-control chat-input"
+                placeholder="Type your message..."
+            >
+            <button type="submit" class="btn btn-success">Send</button>
+        </div>
+    </form>
+</div>
+
+
+</div>
+
+<!-- ==========================================================
+     JAVASCRIPT
+=========================================================== -->
+<script>
+const roomCode = "{{ room.code }}";
+const wsScheme = window.location.protocol === "https:" ? "wss" : "ws";
+const socket = new WebSocket(`${wsScheme}://${window.location.host}/ws/room/${roomCode}/`);
+
+
+const log = document.querySelector("#chat-log");
+const chatInput = document.querySelector("#chat-message-input");
+const form = document.querySelector("#chat-form");
+const loadBtn = document.getElementById("load-btn");
+const ytInput = document.getElementById("yt-url");
+
+let player;
+
+/* ============================================
+   CHAT SEND
+============================================ */
+form.onsubmit = function (e) {
+    e.preventDefault();
+    if (!chatInput.value.trim()) return;
+
+    socket.send(JSON.stringify({
+        type: "chat",
+        message: chatInput.value,
+        user: "{{ request.user.username|default:'Guest' }}"
+    }));
+
+    chatInput.value = "";
+};
+
+/* ============================================
+   CHAT RECEIVE
+============================================ */
+socket.onmessage = function (e) {
+    const data = JSON.parse(e.data);
+
+    // 🟡 System messages: join/leave notifications
+    if (data.type === "system") {
+        const div = document.createElement("div");
+        div.classList.add("text-center", "text-muted", "my-1");
+        div.innerHTML = `<em>${data.message}</em>`;
+        log.appendChild(div);
+
+        log.scrollTo({
+            top: log.scrollHeight,
+            behavior: "smooth"
+        });
+        return;  // stop here for system messages
+    }
+
+    if (data.type === "chat") {
+        const msg = document.createElement("div");
+msg.classList.add("chat-message");
+
+msg.innerHTML = `
+    <div class="chat-user">${data.user}</div>
+    <div class="chat-bubble">${data.message}</div>
+`;
+
+log.appendChild(msg);
+log.scrollTo({
+    top: log.scrollHeight,
+    behavior: "smooth"
+});
+
+
+    }
+
+    if (data.type === "video") handleVideoMessage(data);
+};
+
+/* ============================================
+   YOUTUBE PLAYER
+============================================ */
+let tag = document.createElement("script");
+tag.src = "https://www.youtube.com/iframe_api";
+document.body.appendChild(tag);
+
+function onYouTubeIframeAPIReady() {
+    player = new YT.Player("player", {
+        height: "700",
+        width: "100%",
+        videoId: "",
+        events: {
+            "onStateChange": onPlayerStateChange
+        }
+    });
+}
+
+loadBtn.onclick = () => {
+    const url = ytInput.value.trim();
+    const videoId = extractVideoId(url);
+
+    if (videoId) {
+        player.loadVideoById(videoId);
+        socket.send(JSON.stringify({ type: "video", action: "load", videoId }));
+    }
+};
+
+function extractVideoId(url) {
+    const reg = /(?:v=|youtu\.be\/)([a-zA-Z0-9_-]{11})/;
+    const match = url.match(reg);
+    return match ? match[1] : url;
+}
+
+function onPlayerStateChange(event) {
+    const t = player.getCurrentTime();
+
+    if (event.data === YT.PlayerState.PLAYING)
+        socket.send(JSON.stringify({ type: "video", action: "play", time: t }));
+
+    if (event.data === YT.PlayerState.PAUSED)
+        socket.send(JSON.stringify({ type: "video", action: "pause", time: t }));
+}
+
+function handleVideoMessage(data) {
+    if (!player) return;
+
+    if (data.action === "load") player.loadVideoById(data.videoId);
+    if (data.action === "play") { player.seekTo(data.time, true); player.playVideo(); }
+    if (data.action === "pause") { player.seekTo(data.time, true); player.pauseVideo(); }
+}
+</script>
+
+{% endblock %}
